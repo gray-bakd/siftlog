@@ -31,6 +31,9 @@ kubectl logs my-pod | siftlog --filter 'level=error' --filter 'service=auth'
 
 # Colorized output with pretty printing
 tail -f app.log | siftlog --pretty --filter 'status=500'
+
+# Show only specific fields
+cat app.log | siftlog --fields 'level,msg,service'
 ```
 
 ### Flags
@@ -41,6 +44,10 @@ tail -f app.log | siftlog --pretty --filter 'status=500'
 | `--pretty`, `-p` | Pretty-print and colorize output |
 | `--fields` | Comma-separated list of fields to display |
 | `--no-color` | Disable colorized output |
+
+### Filter Syntax
+
+Filters use `key=value` format and are combined with AND logic — a log line must match **all** provided filters to be included in the output.
 
 ### Example Output
 
