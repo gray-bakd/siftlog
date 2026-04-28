@@ -45,3 +45,23 @@ func Match(line string, queries []Query) bool {
 	}
 	return true
 }
+
+// MatchAny returns true if the JSON log line satisfies at least one of the
+// provided queries. Returns false if queries is empty or the line is not
+// valid JSON.
+func MatchAny(line string, queries []Query) bool {
+	if len(queries) == 0 {
+		return false
+	}
+	var record map[string]interface{}
+	if err := json.Unmarshal([]byte(line), &record); err != nil {
+		return false
+	}
+	for _, q := range queries {
+		val, ok := record[q.Field]
+		if ok && fmt.Sprintf("%v", val) == q.Value {
+			return true
+		}
+	}
+	return false
+}
