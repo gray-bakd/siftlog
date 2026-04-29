@@ -1,39 +1,41 @@
 package pipeline
 
 import (
-	"fmt"
+	"errors"
 	"io"
 
-	"github.com/user/siftlog/filter"
 	"github.com/user/siftlog/output"
 )
 
-// Options holds all configuration for a pipeline run.
+// Options holds configuration for a pipeline run.
 type Options struct {
-	Input       io.Reader
-	Output      io.Writer
-	Queries     []string
-	MinLevel    string
-	FormatMode  output.FormatMode
-	NoColor     bool
+	Input      io.Reader
+	Output     io.Writer
+	Queries    []string
+	MinLevel   string
+	FormatMode string
+	Color      bool
+	Highlight  []string
 }
 
-// Validate checks that the Options are complete and consistent.
-// It returns an error if required fields are missing or values are invalid.
+// Validate checks that required fields are set and values are valid.
 func (o *Options) Validate() error {
 	if o.Input == nil {
-		return fmt.Errorf("input reader must not be nil")
+		return errors.New("input reader is required")
 	}
 	if o.Output == nil {
-		return fmt.Errorf("output writer must not be nil")
+		return errors.New("output writer is required")
+	}
+	if o.FormatMode == "" {
+		o.FormatMode = "raw"
+	}
+	if _, err := output.ParseFormatMode(o.FormatMode); err != nil {
+		return err
 	}
 	if o.MinLevel != "" {
-		if _, err := filter.NewLevelFilter(o.MinLevel); err != nil {
-			return fmt.Errorf("invalid min-level %q: %w", o.MinLevel, err)
+		if _, err := output.ParseLevel(o.MinLevel); err != nil {
+			return err
 		}
-	}
-	if _, err := filter.ParseQueries(o.Queries); err != nil {
-		return fmt.Errorf("invalid query: %w", err)
 	}
 	return nil
 }

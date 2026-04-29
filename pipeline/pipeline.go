@@ -2,46 +2,65 @@ package pipeline
 
 import (
 	"fmt"
-	"io"
 
 	"github.com/user/siftlog/filter"
 	"github.com/user/siftlog/input"
 	"github.com/user/siftlog/output"
 )
 
-// Options holds configuration for a pipeline run.
-type Options struct {
-	Queries  []string
-	NoColor  bool
-	Out      io.Writer
-	ErrOut   io.Writer
-}
-
-// Run reads JSON log lines from r, filters them by queries, colorizes, and writes to opts.Out.
-func Run(r io.Reader, opts Options) error {
-	queries, err := filter.ParseQueries(opts.Queries)
-	if err != nil {
-		return fmt.Errorf("invalid query: %w", err)
+// Run executes the full log processing pipeline using the given Options.
+func Run(opts Options) error {
+	if err := opts.Validate(); err != nil {
+		return fmt.Errorf("invalid options: %w", err)
 	}
 
-	reader := input.NewLineReader(r)
-	for {
-		line, ok := reader.Next()
-		if !ok {
-			break
+	var filters []filter.Filter
+
+	if len(opts.Queries) > 0 {
+		queries, err := filter.ParseQueries(opts.Queries)
+		if err != nil {
+			return fmt.Errorf("invalid query: %w", err)
 		}
+		filters = append(filters, filter.NewFieldFilter(queries))
+	}
+
+	if opts.MinLevel != "" {
+		lvl, err := output.ParseLevel(opts.MinLevel)
+		if err != nil {
+			return fmt.Errorf("invalid level: %w", err)
+		}
+		filters = append(filters, filter.NewLevelFilter(lvl))
+	}
+
+	fmtMode, _ := output.ParseFormatMode(opts.FormatMode)
+	writer := output.NewWriter(opts.Output, fmtMode, opts.Color)
+	reader := input.NewLineReader(opts.Input)
+
+	for reader.Next() {
+		line := reader.Line()
 		if line == "" {
 			continue
 		}
-		if len(queries) > 0 && !filter.Match(line, queries) {
+
+		allowed := true
+		for _, f := range filters {
+			if !f.Allow(line) {
+				allowed = false
+				break
+			}
+		}
+		if !allowed {
 			continue
 		}
-		formatted := output.Colorize(line, !opts.NoColor)
-		fmt.Fprintln(opts.Out, formatted)
+
+		if len(opts.Highlight) > 0 {
+			line = output.HighlightFields(line, opts.Highlight, opts.Color)
+			fmt.Fprintln(opts.Output, line)
+			continue
+		}
+
+		writer.WriteLine(line)
 	}
 
-	if err := reader.Err(); err != nil {
-		return fmt.Errorf("read error: %w", err)
-	}
-	return nil
+	return reader.Err()
 }
