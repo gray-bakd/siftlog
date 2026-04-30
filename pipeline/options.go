@@ -4,33 +4,29 @@ import (
 	"errors"
 	"io"
 
-	"github.com/user/siftlog/output"
+	"github.com/siftlog/output"
 )
 
-// Options holds configuration for a pipeline run.
+// Options holds all configuration for a pipeline run.
 type Options struct {
-	Input      io.Reader
-	Output     io.Writer
-	Queries    []string
-	MinLevel   string
-	FormatMode string
-	Color      bool
-	Highlight  []string
+	Input        io.Reader
+	Output       io.Writer
+	Queries      []string
+	MinLevel     string
+	ColorEnabled bool
+	FormatMode   output.FormatMode
+	Highlight    []string
+	Truncate     output.TruncateOptions
+	TruncateOn   bool
 }
 
-// Validate checks that required fields are set and values are valid.
+// Validate checks that required fields are set and values are coherent.
 func (o *Options) Validate() error {
 	if o.Input == nil {
-		return errors.New("input reader is required")
+		return errors.New("pipeline: Input must not be nil")
 	}
 	if o.Output == nil {
-		return errors.New("output writer is required")
-	}
-	if o.FormatMode == "" {
-		o.FormatMode = "raw"
-	}
-	if _, err := output.ParseFormatMode(o.FormatMode); err != nil {
-		return err
+		return errors.New("pipeline: Output must not be nil")
 	}
 	if o.MinLevel != "" {
 		if _, err := output.ParseLevel(o.MinLevel); err != nil {
